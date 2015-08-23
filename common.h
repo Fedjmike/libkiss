@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -13,6 +14,12 @@
 
 typedef void* (*stdalloc)(size_t);
 typedef void* (*stdrealloc)(void*, size_t);
+
+static inline void* malloci (size_t size, void* src) {
+    void* obj = malloc(size);
+    memcpy(obj, src, size);
+    return obj;
+}
 
 static inline intmax_t logi (intmax_t x, int base) {
     int n = 0;
@@ -72,7 +79,7 @@ static inline char* strnchr (int n, const char* str, char character) {
 }
 
 static inline int strnchrcount (int n, char* str, char character) {
-	str = strnchr(n, str, character);
+    str = strnchr(n, str, character);
 
     int count = 0;
 
@@ -118,6 +125,23 @@ static inline char* strjoinwith (size_t n, char** strs, const char* separator, s
 
 static inline char* strjoin (int n, char** strs, stdalloc allocator) {
     return strjoinwith(n, strs, "", allocator);
+}
+
+/*strcat, resizing the buffer if need be*/
+static inline char* strrecat (char* dest, size_t* size, const char* src) {
+    size_t destlength = strlen(dest);
+    size_t length = destlength + strlen(src) + 1;
+
+    if (length > *size) {
+        *size = length*2;
+        dest = realloc(dest, *size);
+    }
+
+    return strcat(dest+destlength, src);
+}
+
+static inline int qsort_cstr (const void* left, const void* right) {
+    return strcmp(*(char**) left, *(char**) right);
 }
 
 static inline char* readall (FILE* file, stdalloc allocator, stdrealloc reallocator) {
