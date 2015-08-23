@@ -166,7 +166,7 @@ inline static int vectorFind (vector v, void* item) {
 
 inline static void vectorResize (vector* v, int size) {
 	if (size > v->capacity)
-        v->buffer = realloc(v->buffer, v->capacity*sizeof(void*));
+        v->buffer = realloc(v->buffer, size*sizeof(void*));
 
     v->capacity = size;
 
