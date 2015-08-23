@@ -8,6 +8,7 @@ typedef struct vector {
 } vector;
 
 #define vector(t) vector
+#define const_vector(t) const_vector
 
 ///For use with vectorFreeObjs
 typedef void (*vectorDtor)(void*);
@@ -25,20 +26,31 @@ static vector* vectorFree (vector* v);
 /**As with vectorFree, but also call a given destructor on each contained element @see vectorDtor*/
 static vector* vectorFreeObjs (vector* v, void (*dtor)(void*));
 
+/**Allocate a vector of and fill it with elements.
+   \param length is the number of vararg elements given.*/
+static vector vectorInitChain (int length, stdalloc allocator, ...);
+
+/**Duplicate a vector, but copy the elements by value*/
+static vector vectorDup (vector v, stdalloc allocator);
+
+/**A vector is null if it needs a call to vectorInit*/
+static bool vectorNull (vector v);
+
 /**Get an element, if n is in range*/
 static void* vectorGet (vector v, int n);
 
 /**Find an element, returning its index, or 0 if not found.*/
 static int vectorFind (vector v, void* item);
 
+/**Changes the capacity of the vector, chopping off any excess elements*/
 static void vectorResize (vector* v, int size);
 
 /**Add an item to the end of a vector. Returns the position.*/
-static int vectorPush (vector* v, void* item);
+static int vectorPush (vector* v, const void* item);
 
 /**Add to the end of a vector from an array or vector. Doesn't modify the source.*/
 static vector* vectorPushFromArray (vector* v, void** array, int length, int elementSize);
-static vector* vectorPushFromVector (vector* dest, const vector* src);
+static vector* vectorPushFromVector (vector* dest, vector src);
 
 static void* vectorPop (vector* v);
 
@@ -49,12 +61,32 @@ static void* vectorRemoveReorder (vector* v, int n);
 /**Attempt to set an index to a value. Return whether it failed.*/
 static bool vectorSet (vector* v, int n, void* value);
 
-static void vectorFor (const vector* v, vectorIter f);
+#define for_vector_indexed(index, namedecl, vec, continuation)  \
+    do {                                                        \
+        vector for_vector_vec__ = (vec);                        \
+        for (int (index) = 0;                                   \
+             (index) < for_vector_vec__.length;                 \
+             (index)++) {                                       \
+            namedecl = vectorGet(for_vector_vec__, (index));    \
+            {continuation}                                      \
+        }                                                       \
+    } while (0);
+
+#define for_vector(namedecl, vec, continuation)              \
+    do {                                                     \
+        vector for_vector_vec__ = (vec);                     \
+        for (int n = 0; n < for_vector_vec__.length; n++) {  \
+            namedecl = vectorGet(for_vector_vec__, n);       \
+            {continuation}                                   \
+        }                                                    \
+    } while (0);
 
 /**Maps dest[n] to f(src[n]) for n in min(dest->length, src->length).
    src and dest can match.
    @see vectorMapper*/
 static void vectorMap (vector* dest, void* (*f)(void*), const vector* src);
+
+static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator);
 
 /*==== Inline implementations ====*/
 
@@ -67,6 +99,27 @@ inline static vector vectorInit (int initialCapacity, stdalloc allocator) {
         .buffer = allocator(initialCapacity*sizeof(void*))
     };
 }
+#define array_len__(array) sizeof(array)/sizeof(*(array))
+
+#define vectorInitFrom(array, allocator)                            \
+    vectorPushFromArray(vectorInit(array_len__(array), allocator),  \
+                        (array), array_len__(array), sizeof(*(array)))
+
+
+inline static vector vectorInitChain (int length, stdalloc allocator, ...) {
+    vector v = vectorInit(length, allocator);
+    v.length = length;
+
+    va_list args;
+    va_start(args, allocator);
+
+    for (int i = 0; i < length; i++)
+        v.buffer[i] = va_arg(args, void*);
+
+    va_end(args);
+
+    return v;
+}
 
 inline static vector* vectorFree (vector* v) {
     free(v->buffer);
@@ -77,9 +130,21 @@ inline static vector* vectorFree (vector* v) {
 }
 
 inline static vector* vectorFreeObjs (vector* v, vectorDtor dtor) {
-    /*This will mess up the vector, watevs*/
-    vectorMap(v, (vectorMapper) dtor, v);
+    for_vector (void* item, *v, {
+        dtor(item);
+    })
+
     return vectorFree(v);
+}
+
+inline static vector vectorDup (vector v, stdalloc allocator) {
+    vector dup = vectorInit(v.length, allocator);
+    vectorPushFromVector(&dup, v);
+    return dup;
+}
+
+inline static bool vectorNull (vector v) {
+    return v.buffer == 0;
 }
 
 inline static void* vectorGet (vector v, int n) {
@@ -100,18 +165,20 @@ inline static int vectorFind (vector v, void* item) {
 }
 
 inline static void vectorResize (vector* v, int size) {
+	if (size > v->capacity)
+        v->buffer = realloc(v->buffer, v->capacity*sizeof(void*));
+
     v->capacity = size;
-    v->buffer = realloc(v->buffer, v->capacity*sizeof(void*));
 
     if (v->capacity < v->length)
         v->length = size;
 }
 
-inline static int vectorPush (vector* v, void* item) {
+inline static int vectorPush (vector* v, const void* item) {
     if (v->length == v->capacity)
         vectorResize(v, v->capacity*2);
 
-    v->buffer[v->length] = item;
+    v->buffer[v->length] = (void*) item;
     return v->length++;
 }
 
@@ -133,12 +200,16 @@ inline static vector* vectorPushFromArray (vector* v, void** array, int length, 
     return v;
 }
 
-inline static vector* vectorPushFromVector (vector* dest, const vector* src) {
-    return vectorPushFromArray(dest, src->buffer, src->length, sizeof(void*));
+inline static vector* vectorPushFromVector (vector* dest, vector src) {
+    return vectorPushFromArray(dest, src.buffer, src.length, sizeof(void*));
 }
 
 inline static void* vectorPop (vector* v) {
-    return v->buffer[--v->length];
+    if (v->length >= 1)
+        return v->buffer[--v->length];
+
+    else
+        return 0;
 }
 
 inline static void* vectorRemoveReorder (vector* v, int n) {
@@ -159,11 +230,6 @@ inline static bool vectorSet (vector* v, int n, void* value) {
         return true;
 }
 
-inline static void vectorFor (const vector* v, vectorIter f) {
-    for (int n = 0; n < v->length; n++)
-        f(v->buffer[n]);
-}
-
 inline static void vectorMap (vector* dest, vectorMapper f, const vector* src) {
     int upto = src->length > dest->capacity ? dest->capacity : src->length;
 
@@ -171,4 +237,13 @@ inline static void vectorMap (vector* dest, vectorMapper f, const vector* src) {
         dest->buffer[n] = f(src->buffer[n]);
 
     dest->length = upto;
+}
+
+inline static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator) {
+    vector result = vectorInit(src.length, allocator);
+
+    for (int n = 0; n < src.length; n++)
+        vectorPush(&result, f(src.buffer[n]));
+
+    return result;
 }

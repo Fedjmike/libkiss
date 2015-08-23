@@ -83,4 +83,6 @@ const char* fmode_getstr (fmode mode) {
     case file_fifo: return "FIFO/pipe";
     case file_other: return "unknown file type";
     }
+    
+    return "<unhandled file type>";
 }
