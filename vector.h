@@ -84,7 +84,7 @@ static bool vectorSet (vector* v, int n, void* value);
 /**Maps dest[n] to f(src[n]) for n in min(dest->length, src->length).
    src and dest can match.
    @see vectorMapper*/
-static void vectorMap (vector* dest, void* (*f)(void*), const vector* src);
+static void vectorMap (vector* dest, void* (*f)(void*), vector src);
 
 static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator);
 
@@ -230,11 +230,11 @@ inline static bool vectorSet (vector* v, int n, void* value) {
         return true;
 }
 
-inline static void vectorMap (vector* dest, vectorMapper f, const vector* src) {
-    int upto = src->length > dest->capacity ? dest->capacity : src->length;
+inline static void vectorMap (vector* dest, vectorMapper f, vector src) {
+    int upto = src.length > dest->capacity ? dest->capacity : src.length;
 
     for (int n = 0; n < upto; n++)
-        dest->buffer[n] = f(src->buffer[n]);
+        dest->buffer[n] = f(src.buffer[n]);
 
     dest->length = upto;
 }
