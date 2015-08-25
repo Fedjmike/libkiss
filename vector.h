@@ -49,7 +49,7 @@ static void vectorResize (vector* v, int size);
 static int vectorPush (vector* v, const void* item);
 
 /**Add to the end of a vector from an array or vector. Doesn't modify the source.*/
-static vector* vectorPushFromArray (vector* v, void** array, int length, int elementSize);
+static vector* vectorPushFromArray (vector* v, void** array, int length, size_t elementSize);
 static vector* vectorPushFromVector (vector* dest, vector src);
 
 static void* vectorPop (vector* v);
@@ -182,7 +182,7 @@ inline static int vectorPush (vector* v, const void* item) {
     return v->length++;
 }
 
-inline static vector* vectorPushFromArray (vector* v, void** array, int length, int elementSize) {
+inline static vector* vectorPushFromArray (vector* v, void** array, int length, size_t elementSize) {
     /*Make sure it is at least big enough*/
     if (v->capacity < v->length + length)
         vectorResize(v, v->capacity + length*2);

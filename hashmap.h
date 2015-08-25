@@ -226,9 +226,9 @@ static inline generalmap generalmapInit (int size, stdalloc allocator, bool hash
     return (generalmap) {
         .size = size,
         .elements = 0,
-        .keysInt = calloc(size, sizeof(char*)),
+        .keysInt = calloc(size, sizeof(intptr_t)),
         .hashes = hashes ? calloc(size, sizeof(int)) : 0,
-        .values = calloc(size, sizeof(char*))
+        .values = calloc(size, sizeof(void*))
     };
 }
 
