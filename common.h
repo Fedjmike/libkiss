@@ -68,6 +68,11 @@ static inline char* strdup (const char* src) {
 
 #endif
 
+static inline size_t strwidth (const char* str) {
+    //todo unicode
+    return strlen(str);
+}
+
 static inline char* strnchr (int n, const char* str, char character) {
     //todo optimize
 
