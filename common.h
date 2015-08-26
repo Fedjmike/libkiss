@@ -95,7 +95,6 @@ static inline int strnchrcount (int n, char* str, char character) {
 }
 
 static inline size_t strcatwith (char* buffer, size_t n, char** strs, const char* separator) {
-    buffer += strlen(buffer);
     size_t pos = 0;
 
     /*Copy all but the last, with sep*/
