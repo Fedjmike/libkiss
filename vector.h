@@ -30,6 +30,9 @@ static vector* vectorFreeObjs (vector* v, void (*dtor)(void*));
    \param length is the number of vararg elements given.*/
 static vector vectorInitChain (int length, stdalloc allocator, ...);
 
+/**Join n vectors into a newly allocated vecto*/
+static vector vectorsJoin (int n, stdalloc allocator, ...);
+
 /**Duplicate a vector, but copy the elements by value*/
 static vector vectorDup (vector v, stdalloc allocator);
 
@@ -115,6 +118,34 @@ inline static vector vectorInitChain (int length, stdalloc allocator, ...) {
 
     for (int i = 0; i < length; i++)
         v.buffer[i] = va_arg(args, void*);
+
+    va_end(args);
+
+    return v;
+}
+
+static inline vector vectorsJoin (int n, stdalloc allocator, ...) {
+    va_list args;
+
+    /*Work out the length*/
+
+    int length = 0;
+
+    va_start(args, allocator);
+
+    for (int i = 0; i < n; i++)
+        length += va_arg(args, vector).length;
+
+    va_end(args);
+
+    /*Allocate and join*/
+
+    vector v = vectorInit(length, allocator);
+
+    va_start(args, allocator);
+
+    for (int i = 0; i < n; i++)
+        vectorPushFromVector(&v, va_arg(args, vector));
 
     va_end(args);
 
