@@ -42,6 +42,9 @@ static bool vectorNull (vector v);
 /**Get an element, if n is in range*/
 static void* vectorGet (vector v, int n);
 
+/**Get the last element*/
+static void* vectorTop (vector v);
+
 /**Find an element, returning its index, or 0 if not found.*/
 static int vectorFind (vector v, void* item);
 
@@ -184,6 +187,10 @@ inline static void* vectorGet (vector v, int n) {
 
     else
         return 0;
+}
+
+inline static void* vectorTop (vector v) {
+    return v.length > 0 ? v.buffer[v.length-1] : 0;
 }
 
 inline static int vectorFind (vector v, void* item) {
