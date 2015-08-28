@@ -15,7 +15,7 @@
 typedef void* (*stdalloc)(size_t);
 typedef void* (*stdrealloc)(void*, size_t);
 
-static inline void* malloci (size_t size, void* src) {
+static inline void* malloci (size_t size, const void* src) {
     void* obj = malloc(size);
     memcpy(obj, src, size);
     return obj;
