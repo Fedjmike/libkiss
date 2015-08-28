@@ -87,6 +87,15 @@ static bool vectorSet (vector* v, int n, void* value);
         }                                                    \
     } while (0);
 
+#define for_vector_reverse(namedecl, vec, continuation)  \
+    do {                                                 \
+        vector for_vector_vec__ = (vec);                 \
+        for (int n = for_vector_vec__.length; n; n--) {  \
+            namedecl = for_vector_vec__.buffer[n-1];     \
+            {continuation}                               \
+        }                                                \
+    } while (0);
+
 /**Maps dest[n] to f(src[n]) for n in min(dest->length, src->length).
    src and dest can match.
    @see vectorMapper*/
