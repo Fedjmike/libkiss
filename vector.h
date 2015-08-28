@@ -70,7 +70,7 @@ static bool vectorSet (vector* v, int n, void* value);
         for (int (index) = 0;                                   \
              (index) < for_vector_vec__.length;                 \
              (index)++) {                                       \
-            namedecl = vectorGet(for_vector_vec__, (index));    \
+            namedecl = for_vector_vec__.buffer[index];          \
             {continuation}                                      \
         }                                                       \
     } while (0);
@@ -79,7 +79,7 @@ static bool vectorSet (vector* v, int n, void* value);
     do {                                                     \
         vector for_vector_vec__ = (vec);                     \
         for (int n = 0; n < for_vector_vec__.length; n++) {  \
-            namedecl = vectorGet(for_vector_vec__, n);       \
+            namedecl = for_vector_vec__.buffer[n];           \
             {continuation}                                   \
         }                                                    \
     } while (0);
