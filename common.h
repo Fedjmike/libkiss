@@ -55,8 +55,8 @@ static inline int dryprintf (const char* format, ...) {
     return width;
 }
 
-static inline void putnchar (int character, unsigned int times) {
-    for (unsigned int i = 0; i < times; i++)
+static inline void putnchar (int character, int times) {
+    for (int i = 0; i < times; i++)
         putchar(character);
 }
 
