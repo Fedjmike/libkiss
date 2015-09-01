@@ -109,6 +109,9 @@ static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator);
 #include "string.h"
 
 inline static vector vectorInit (int initialCapacity, stdalloc allocator) {
+    if (initialCapacity == 0)
+        initialCapacity++;
+
     return (vector) {
         .capacity = initialCapacity,
         .buffer = allocator(initialCapacity*sizeof(void*))
