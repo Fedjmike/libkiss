@@ -138,13 +138,11 @@ inline static vector vectorInitChain (int length, stdalloc allocator, ...) {
     vector v = vectorInit(length, allocator);
     v.length = length;
 
-    va_list args;
-    va_start(args, allocator);
+    int i = 0;
 
-    for (int i = 0; i < length; i++)
-        v.buffer[i] = va_arg(args, void*);
-
-    va_end(args);
+    for_n_args (length, void* element, allocator, {
+        v.buffer[i++] = element;
+    })
 
     return v;
 }
