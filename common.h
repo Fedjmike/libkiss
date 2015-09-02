@@ -12,6 +12,13 @@
     do {__typeof__(x) __swap_tmp = (x);  \
         (x) = (y); (y) = __swap_tmp;} while (0)
 
+#define for_n_args(length, decl, lastparam, continuation)   \
+    va_list __for_args; va_start(__for_args, (lastparam));  \
+    for (int __for_i = 0; __for_i < (length); __for_i++) {  \
+        decl = va_arg(__for_args, void*);                   \
+        {continuation}                                      \
+    } va_end(__for_args);
+
 typedef void* (*stdalloc)(size_t);
 typedef void* (*stdrealloc)(void*, size_t);
 
