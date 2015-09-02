@@ -30,6 +30,16 @@ static vector* vectorFreeObjs (vector* v, void (*dtor)(void*));
    \param length is the number of vararg elements given.*/
 static vector vectorInitChain (int length, stdalloc allocator, ...);
 
+/*Cast to void* so that the size matches up.
+  On AMD64 (for example), calling a variadic fn with an int will
+  allocate a diferent amount of stack space than a void*.*/
+#define VTERM ((void*) 0)
+
+/**Similar to vectorInitChain except the length is indicated by a
+   termination marker arg, VTERM. Less efficient than the former,
+   so provided only for convenience.*/
+static vector vectorInitMarkedChain (stdalloc allocator, ...);
+
 /**Join n vectors into a newly allocated vecto*/
 static vector vectorsJoin (int n, stdalloc allocator, ...);
 
@@ -133,6 +143,26 @@ inline static vector vectorInitChain (int length, stdalloc allocator, ...) {
 
     for (int i = 0; i < length; i++)
         v.buffer[i] = va_arg(args, void*);
+
+    va_end(args);
+
+    return v;
+}
+
+inline static vector vectorInitMarkedChain (stdalloc allocator, ...) {
+    vector v = vectorInit(8, allocator);
+
+    va_list args;
+    va_start(args, allocator);
+
+    for (int i = 0; ; i++) {
+        void* arg = va_arg(args, void*);
+
+        if (!arg)
+            break;
+
+        vectorPush(&v, arg);
+    }
 
     va_end(args);
 
