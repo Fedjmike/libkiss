@@ -17,7 +17,7 @@ typedef void (*vectorIter)(void*);
 ///For use with vectorMap
 typedef void* (*vectorMapper)(void*);
 
-static vector vectorInit (int initialCapacity, stdalloc allocator);
+static vector vectorInit (int initialCapacity, malloc_t malloc);
 
 /**Clean up resources allocated by the vector but not the vector itself.
    This is safe to call on a null (all zero, uninitialized) vector*/
@@ -28,7 +28,7 @@ static vector* vectorFreeObjs (vector* v, void (*dtor)(void*));
 
 /**Allocate a vector of and fill it with elements.
    \param length is the number of vararg elements given.*/
-static vector vectorInitChain (int length, stdalloc allocator, ...);
+static vector vectorInitChain (int length, malloc_t malloc, ...);
 
 /*Cast to void* so that the size matches up.
   On AMD64 (for example), calling a variadic fn with an int will
@@ -38,13 +38,13 @@ static vector vectorInitChain (int length, stdalloc allocator, ...);
 /**Similar to vectorInitChain except the length is indicated by a
    termination marker arg, VTERM. Less efficient than the former,
    so provided only for convenience.*/
-static vector vectorInitMarkedChain (stdalloc allocator, ...);
+static vector vectorInitMarkedChain (malloc_t malloc, ...);
 
 /**Join n vectors into a newly allocated vecto*/
-static vector vectorsJoin (int n, stdalloc allocator, ...);
+static vector vectorsJoin (int n, malloc_t malloc, ...);
 
 /**Duplicate a vector, but copy the elements by value*/
-static vector vectorDup (vector v, stdalloc allocator);
+static vector vectorDup (vector v, malloc_t malloc);
 
 /**A vector is null if it needs a call to vectorInit*/
 static bool vectorNull (vector v);
@@ -59,9 +59,11 @@ static void* vectorTop (vector v);
 static int vectorFind (vector v, void* item);
 
 /**Changes the capacity of the vector, chopping off any excess elements*/
-static void vectorResize (vector* v, int size);
+static void vectorResize (vector* v, int capacity, realloc_t realloc);
 
-/**Add an item to the end of a vector. Returns the position.*/
+/**Add an item to the end of a vector. Returns the position.
+   May resize the buffer. vectorPush uses std realloc.*/
+static int vectorPusha (vector* v, const void* item, realloc_t realloc);
 static int vectorPush (vector* v, const void* item);
 
 /**Add to the end of a vector from an array or vector. Doesn't modify the source.*/
@@ -111,47 +113,47 @@ static bool vectorSet (vector* v, int n, void* value);
    @see vectorMapper*/
 static void vectorMap (vector* dest, void* (*f)(void*), vector src);
 
-static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator);
+static vector vectorMapInit (void* (*f)(void*), vector src, malloc_t malloc);
 
 /*==== Inline implementations ====*/
 
 #include "stdlib.h"
 #include "string.h"
 
-inline static vector vectorInit (int initialCapacity, stdalloc allocator) {
+inline static vector vectorInit (int initialCapacity, malloc_t malloc) {
     if (initialCapacity == 0)
         initialCapacity++;
 
     return (vector) {
         .capacity = initialCapacity,
-        .buffer = allocator(initialCapacity*sizeof(void*))
+        .buffer = malloc(initialCapacity*sizeof(void*))
     };
 }
 #define array_len__(array) sizeof(array)/sizeof(*(array))
 
-#define vectorInitFrom(array, allocator)                            \
-    vectorPushFromArray(vectorInit(array_len__(array), allocator),  \
+#define vectorInitFrom(array, malloc)                            \
+    vectorPushFromArray(vectorInit(array_len__(array), malloc),  \
                         (array), array_len__(array), sizeof(*(array)))
 
 
-inline static vector vectorInitChain (int length, stdalloc allocator, ...) {
-    vector v = vectorInit(length, allocator);
+inline static vector vectorInitChain (int length, malloc_t malloc, ...) {
+    vector v = vectorInit(length, malloc);
     v.length = length;
 
     int i = 0;
 
-    for_n_args (length, void* element, allocator, {
+    for_n_args (length, void* element, malloc, {
         v.buffer[i++] = element;
     })
 
     return v;
 }
 
-inline static vector vectorInitMarkedChain (stdalloc allocator, ...) {
-    vector v = vectorInit(8, allocator);
+inline static vector vectorInitMarkedChain (malloc_t malloc, ...) {
+    vector v = vectorInit(8, malloc);
 
     va_list args;
-    va_start(args, allocator);
+    va_start(args, malloc);
 
     for (int i = 0; ; i++) {
         void* arg = va_arg(args, void*);
@@ -167,14 +169,14 @@ inline static vector vectorInitMarkedChain (stdalloc allocator, ...) {
     return v;
 }
 
-static inline vector vectorsJoin (int n, stdalloc allocator, ...) {
+static inline vector vectorsJoin (int n, malloc_t malloc, ...) {
     va_list args;
 
     /*Work out the length*/
 
     int length = 0;
 
-    va_start(args, allocator);
+    va_start(args, malloc);
 
     for (int i = 0; i < n; i++)
         length += va_arg(args, vector).length;
@@ -183,9 +185,9 @@ static inline vector vectorsJoin (int n, stdalloc allocator, ...) {
 
     /*Allocate and join*/
 
-    vector v = vectorInit(length, allocator);
+    vector v = vectorInit(length, malloc);
 
-    va_start(args, allocator);
+    va_start(args, malloc);
 
     for (int i = 0; i < n; i++)
         vectorPushFromVector(&v, va_arg(args, vector));
@@ -211,8 +213,8 @@ inline static vector* vectorFreeObjs (vector* v, vectorDtor dtor) {
     return vectorFree(v);
 }
 
-inline static vector vectorDup (vector v, stdalloc allocator) {
-    vector dup = vectorInit(v.length, allocator);
+inline static vector vectorDup (vector v, malloc_t malloc) {
+    vector dup = vectorInit(v.length, malloc);
     vectorPushFromVector(&dup, v);
     return dup;
 }
@@ -242,28 +244,32 @@ inline static int vectorFind (vector v, void* item) {
     return -1;
 }
 
-inline static void vectorResize (vector* v, int size) {
-	if (size > v->capacity)
-        v->buffer = realloc(v->buffer, size*sizeof(void*));
+inline static void vectorResize (vector* v, int capacity, realloc_t realloc) {
+	if (capacity > v->capacity)
+        v->buffer = realloc(v->buffer, capacity*sizeof(void*));
 
-    v->capacity = size;
+    v->capacity = capacity;
 
     if (v->capacity < v->length)
-        v->length = size;
+        v->length = capacity;
 }
 
-inline static int vectorPush (vector* v, const void* item) {
+inline static int vectorPusha (vector* v, const void* item, realloc_t realloc) {
     if (v->length == v->capacity)
-        vectorResize(v, v->capacity*2);
+        vectorResize(v, v->capacity*2, realloc);
 
     v->buffer[v->length] = (void*) item;
     return v->length++;
 }
 
+inline static int vectorPush (vector* v, const void* item) {
+    return vectorPusha(v, item, realloc);
+}
+
 inline static vector* vectorPushFromArray (vector* v, void** array, int length, size_t elementSize) {
     /*Make sure it is at least big enough*/
     if (v->capacity < v->length + length)
-        vectorResize(v, v->capacity + length*2);
+        vectorResize(v, v->capacity + length*2, realloc);
 
     /*If the src and dest element size match, memcpy*/
     if (elementSize == sizeof(void*))
@@ -317,8 +323,8 @@ inline static void vectorMap (vector* dest, vectorMapper f, vector src) {
     dest->length = upto;
 }
 
-inline static vector vectorMapInit (void* (*f)(void*), vector src, stdalloc allocator) {
-    vector result = vectorInit(src.length, allocator);
+inline static vector vectorMapInit (void* (*f)(void*), vector src, malloc_t malloc) {
+    vector result = vectorInit(src.length, malloc);
 
     for (int n = 0; n < src.length; n++)
         vectorPush(&result, f(src.buffer[n]));

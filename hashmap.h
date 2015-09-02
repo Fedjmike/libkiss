@@ -66,7 +66,7 @@ static bool mapNull (generalmap map);
 typedef void (*hashmapKeyDtor)(char* key, const void* value);
 typedef void (*hashmapValueDtor)(void* value);
 
-static hashmap hashmapInit (int size, stdalloc allocator);
+static hashmap hashmapInit (int size, calloc_t calloc);
 
 static hashmap* hashmapFree (hashmap* map);
 static hashmap* hashmapFreeObjs (hashmap* map, hashmapKeyDtor keyDtor, hashmapValueDtor valueDtor);
@@ -81,7 +81,7 @@ static void* hashmapMap (const hashmap* map, const char* key);
 
 typedef void (*intmapValueDtor)(void* value, int key);
 
-static intmap intmapInit (int size, stdalloc allocator);
+static intmap intmapInit (int size, calloc_t calloc);
 
 static intmap* intmapFree (intmap* map);
 static intmap* intmapFreeObjs (intmap* map, intmapValueDtor dtor);
@@ -95,7 +95,7 @@ static void* intmapMap (const intmap* map, intptr_t element);
 
 typedef void (*hashsetDtor)(char* element);
 
-static hashset hashsetInit (int size, stdalloc allocator);
+static hashset hashsetInit (int size, calloc_t calloc);
 
 static hashset* hashsetFree (hashset* set);
 static hashset* hashsetFreeObjs (hashset* set, hashsetDtor dtor);
@@ -108,7 +108,7 @@ static bool hashsetTest (const hashset* set, const char* element);
 
 /*==== intset ====*/
 
-static intset intsetInit (int size, stdalloc allocator);
+static intset intsetInit (int size, calloc_t calloc);
 static intset* intsetFree (intset* set);
 
 static bool intsetAdd (intset* set, intptr_t element);
@@ -136,7 +136,7 @@ typedef intptr_t (*generalmapHash)(const char* key, int mapsize);
 typedef int (*generalmapCmp)(const char* actual, const char* key);
 typedef char* (*generalmapDup)(const char* key);
 
-static generalmap generalmapInit (int size, stdalloc allocator, bool hashes);
+static generalmap generalmapInit (int size, calloc_t calloc, bool hashes);
 
 static generalmap* generalmapFree (generalmap* map, bool hashes);
 static generalmap* generalmapFreeObjs (generalmap* map, generalmapKeyDtor keyDtor, generalmapValueDtor valueDtor,
@@ -217,9 +217,7 @@ static inline int pow2ize (int x) {
     return x+1;
 }
 
-static inline generalmap generalmapInit (int size, stdalloc allocator, bool hashes) {
-    (void) allocator;
-
+static inline generalmap generalmapInit (int size, calloc_t calloc, bool hashes) {
     /*The hash requires that the size is a power of two*/
     size = pow2ize(size);
 
@@ -298,7 +296,7 @@ static inline bool generalmapAdd (generalmap* map, const char* key, void* value,
     /*Half full: create a new one twice the size and copy elements over.
       Allows us to assume there is space for the key.*/
     if (map->elements*2 + 1 >= map->size) {
-        generalmap newmap = generalmapInit(map->size*2, malloc, cmp != 0);
+        generalmap newmap = generalmapInit(map->size*2, calloc, cmp != 0);
         generalmapMerge(&newmap, map, hashf, cmp, 0, values);
         generalmapFree(map, cmp != 0);
         *map = newmap;
@@ -358,8 +356,8 @@ static inline bool generalmapTest (const generalmap* map, const char* key, gener
 
 /*==== HASHMAP ====*/
 
-static inline hashmap hashmapInit (int size, stdalloc allocator) {
-    return generalmapInit(size, allocator, true);
+static inline hashmap hashmapInit (int size, calloc_t calloc) {
+    return generalmapInit(size, calloc, true);
 }
 
 static inline hashmap* hashmapFree (hashmap* map) {
@@ -388,8 +386,8 @@ static inline void* hashmapMap (const hashmap* map, const char* key) {
 
 /*==== intmap ====*/
 
-static inline intmap intmapInit (int size, stdalloc allocator) {
-    return generalmapInit(size, allocator, false);
+static inline intmap intmapInit (int size, calloc_t calloc) {
+    return generalmapInit(size, calloc, false);
 }
 
 static inline intmap* intmapFree (intmap* map) {
@@ -414,8 +412,8 @@ static inline void* intmapMap (const intmap* map, intptr_t element) {
 
 /*==== hashset ====*/
 
-static inline hashset hashsetInit (int size, stdalloc allocator) {
-    return generalmapInit(size, allocator, true);
+static inline hashset hashsetInit (int size, calloc_t calloc) {
+    return generalmapInit(size, calloc, true);
 }
 
 static inline hashset* hashsetFree (hashset* set) {
@@ -444,8 +442,8 @@ static inline bool hashsetTest (const hashset* set, const char* element) {
 
 /*==== intset ====*/
 
-static inline intset intsetInit (int size, stdalloc allocator) {
-    return generalmapInit(size, allocator, false);
+static inline intset intsetInit (int size, calloc_t calloc) {
+    return generalmapInit(size, calloc, false);
 }
 
 static inline intset* intsetFree (intset* set) {

@@ -19,8 +19,19 @@
         {continuation}                                      \
     } va_end(__for_args);
 
-typedef void* (*stdalloc)(size_t);
-typedef void* (*stdrealloc)(void*, size_t);
+typedef void* (*malloc_t)(size_t);
+typedef void* (*calloc_t)(size_t, size_t);
+typedef void (*free_t)(void*);
+typedef void* (*realloc_t)(void*, size_t);
+
+typedef struct alloc_t {
+    malloc_t malloc;
+    calloc_t clear;
+    free_t free;
+    realloc_t realloc;
+} alloc_t;
+
+#define stdalloc ((alloc_t) {malloc, free, realloc})
 
 static inline void* malloci (size_t size, const void* src) {
     void* obj = malloc(size);
@@ -113,9 +124,12 @@ static inline size_t strcatwith (char* buffer, size_t n, char** strs, const char
     return pos;
 }
 
-static inline char* strjoinwith (size_t n, char** strs, const char* separator, stdalloc allocator) {
-    if (n <= 0)
-        return calloc(1, sizeof(char));
+static inline char* strjoinwith (size_t n, char** strs, const char* separator, malloc_t malloc) {
+    if (n <= 0) {
+        char* str = malloc(1);
+        *str = 0;
+        return str;
+    }
 
     /*Work out the length*/
 
@@ -128,14 +142,14 @@ static inline char* strjoinwith (size_t n, char** strs, const char* separator, s
 
     /*Make the string*/
 
-    char* str = allocator(length);
+    char* str = malloc(length);
     strcatwith(str, n, strs, separator);
 
     return str;
 }
 
-static inline char* strjoin (int n, char** strs, stdalloc allocator) {
-    return strjoinwith(n, strs, "", allocator);
+static inline char* strjoin (int n, char** strs, malloc_t malloc) {
+    return strjoinwith(n, strs, "", malloc);
 }
 
 /*strcat, resizing the buffer if need be*/
@@ -155,9 +169,9 @@ static inline int qsort_cstr (const void* left, const void* right) {
     return strcmp(*(char**) left, *(char**) right);
 }
 
-static inline char* readall (FILE* file, stdalloc allocator, stdrealloc reallocator) {
+static inline char* readall (FILE* file, alloc_t alloc) {
     size_t bufsize = 512;
-    char* buffer = allocator(bufsize);
+    char* buffer = alloc.malloc(bufsize);
     size_t pos = 0;
 
     for (;;) {
@@ -169,11 +183,11 @@ static inline char* readall (FILE* file, stdalloc allocator, stdrealloc realloca
             break;
 
         else
-            buffer = reallocator(buffer, bufsize *= 2);
+            buffer = alloc.realloc(buffer, bufsize *= 2);
     }
 
     if (pos >= bufsize)
-        buffer = realloc(buffer, bufsize += 1);
+        buffer = alloc.realloc(buffer, bufsize += 1);
 
     buffer[pos-1] = 0;
     return buffer;
