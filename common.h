@@ -23,15 +23,17 @@ typedef void* (*malloc_t)(size_t);
 typedef void* (*calloc_t)(size_t, size_t);
 typedef void (*free_t)(void*);
 typedef void* (*realloc_t)(void*, size_t);
+typedef char* (*strdup_t)(const char*);
 
 typedef struct alloc_t {
     malloc_t malloc;
     calloc_t clear;
     free_t free;
     realloc_t realloc;
+    strdup_t strdup;
 } alloc_t;
 
-#define stdalloc ((alloc_t) {malloc, free, realloc})
+#define stdalloc ((alloc_t) {malloc, clear, free, realloc, strdup})
 
 static inline void* malloci (size_t size, const void* src) {
     void* obj = malloc(size);
