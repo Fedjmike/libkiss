@@ -41,6 +41,12 @@ static inline void* malloci (size_t size, const void* src) {
     return obj;
 }
 
+static inline void* alloci (size_t size, const void* src, malloc_t malloc) {
+    void* obj = malloc(size);
+    memcpy(obj, src, size);
+    return obj;
+}
+
 static inline intmax_t logi (intmax_t x, int base) {
     int n = 0;
 
